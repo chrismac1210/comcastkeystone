@@ -1,0 +1,2 @@
+0.1.0, 07-23-2012 -- Initial release - Authenticate against the corporate LDAP but authorize
+                        against access rules defined in the Keystone database.
