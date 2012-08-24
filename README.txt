@@ -87,3 +87,77 @@ Identity: comcastkeystone.identity.backends.ldapsql
                     connection = mysql://<Keystone DB Admin User Name>:<Keystone DB Admin User Password>@<DB Host>/keystone?charset=utf8
 
 
+    Testing:
+        As mentioned in the "Configuration - Keystone configuration" section above there are two ways to configure
+        Authentication. SQL Authentication relies on the Keystone's native facilities which uses a MySql database as its
+        datastore. The other, LDAP Authentication, implements authentication against Comcast's corporate LDAP server
+        which poses an addtitional challenge.
+
+        The challenge is that the LDAP server is a production server. The "Lab" environment has NO CONNECTIVITY to it.
+        This means is that to test this method you first follow the directions in the "Configuration - Keystone
+        configuration - LDAP Authentication" section. Then you must set up SSH tunneling to allow a connection to the
+        LDAP server through a machine that has access to it.
+
+        SQL Authentication Testing
+            Configuration:
+                Follow the instructions in the "Configuration - Keystone configuration - SQL Authentication" section.
+
+            Restart Keystone:
+                As "root" enter the following at the command prompt:
+                    [root@devstack01 init.d]# service openstack-keystone restart
+
+            Testing:
+                Then follow the "Test Script" below.
+
+        LDAP Authentication Testing
+            Configuration:
+                - SSH Tunneling (NOTE: NOT required for production):
+                    You need a machine that can access the Production LDAP server. This is not hard to find. Any
+                    machine with a wired ethernet connection at Comcast Center should work. To verify that the
+                    machine can connect use telnet. It should go something like this:
+
+                        you@yourMachine ~ $ telnet adapps.cable.comcast.com 389
+                        Trying 147.191.115.15...
+                        Connected to adapps.g.comcast.com.
+                        Escape character is '^]'.
+
+                    Next you need to establish the SSH Tunnel via remote port forwarding. To do that enter the
+                    following command:
+
+                        you@yourMachine ~ $ ssh -R localhost:3389:adapps.cable.comcast.com:389 red@10.253.183.20
+
+                    You will be prompted for a password. Then you should be able to verify connectivity to the LDAP
+                    server via telnet:
+
+                        [red@devstack01 ~]$ telnet localhost 3389
+                        Trying ::1...
+                        Connected to localhost.
+                        Escape character is '^]'.
+
+                - Follow the instructions in the "Configuration - Keystone configuration - LDAP Authentication" section
+                    but for testing there is one small change. The value for the "url" in the LDAP section is different.
+                    It should be:
+                        [ldap]
+                        url = ldap://localhost:3389
+                        user_tree_dn = cable
+
+            Restart Keystone:
+                As "root" enter the following at the command prompt:
+                    [root@devstack01 init.d]# service openstack-keystone restart
+
+            Testing:
+                Then follow the "Test Script" below.
+
+        Test Script
+            - Connect to the OpenStack Dashboard (Horizon)
+            - Enter your user ID
+            - Enter you password
+                - Note: For SQL Authentication this is likely the standard lab password. For LDAP Authentication it will
+                    be the password you use to logon to most corporate apps like email and Commons.
+            - You should given access to the OpenStack Dashboard (Horizon):
+                - If so:  PASS
+                - If not: FAIL
+
+
+
+
