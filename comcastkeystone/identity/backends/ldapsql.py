@@ -14,6 +14,7 @@
 #   and Keystone does the rest (roles, tenants, etc)
 
 # Required by 'Original sql authentication logic'
+#from nevow.livepage import self
 from keystone.common import utils
 
 from keystone import config
@@ -44,6 +45,7 @@ class LdapIdentity(sql.Identity):
         Expects the user object to have a password field and the tenant to be
         in the list of tenants on the user.
 
+
         """
         # If they're not in keystone no need to check LDAP
         user_ref = self._get_user(user_id)
@@ -51,16 +53,23 @@ class LdapIdentity(sql.Identity):
             raise AssertionError('User not registered in Keystone')
 
         # We were given the id of the user in the keystone database.
+        user_name = user_ref.get('name')
+
+        # If its an OpenStack service call validate against the native Keystone implementation because the service
+        # users will NOT be in LDAP
+        if user_name in ['glance', 'nova', 'swift']:
+            return super(LdapIdentity, self).authenticate(user_id, tenant_id, password)
+
         # We need the user name. Get it (prepend domain name (yes, a Hack))
-        user_name = self.LDAP_DOMAIN + '\\' + user_ref.get('name')
-        LOG.debug("Attempting to validate user with name: %s", user_name)
+        domain_user_name = self.LDAP_DOMAIN + '\\' + user_ref.get('name')
+        LOG.debug("Attempting to validate user with name: %s", domain_user_name)
 
         # Authenticate against LDAP
         conn = ldap.initialize(self.LDAP_URL)
         conn.protocol_version = 3
         conn.set_option(ldap.OPT_REFERRALS, 0)
         try:
-            conn.simple_bind_s(user_name, password)
+            conn.simple_bind_s(domain_user_name, password)
         except ldap.LDAPError:
             raise AssertionError('Invalid user / password')
 
