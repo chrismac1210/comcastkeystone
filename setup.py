@@ -11,7 +11,7 @@ setup(
               'comcastkeystone.identity.backends',
               'comcastkeystone.test'],
     description='Comcast specific implementations of OpenStack Keystone functionality.',
-    long_description=open('README.txt').read(),
+    long_description=open('README.md').read(),
     platforms='linux'
 )
 
