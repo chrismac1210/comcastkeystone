@@ -57,7 +57,7 @@ class LdapIdentity(sql.Identity):
 
         # If its an OpenStack service call validate against the native Keystone implementation because the service
         # users will NOT be in LDAP
-        if user_name in ['glance', 'nova', 'swift']:
+        if user_name in ['glance', 'nova', 'swift', 'admin']:
             return super(LdapIdentity, self).authenticate(user_id, tenant_id, password)
 
         # We need the user name. Get it (prepend domain name (yes, a Hack))
