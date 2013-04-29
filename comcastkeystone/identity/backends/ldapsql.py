@@ -65,12 +65,15 @@ class LdapIdentity(sql.Identity):
         LOG.debug("Attempting to validate user with name: %s", domain_user_name)
 
         # Authenticate against LDAP
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         conn = ldap.initialize(self.LDAP_URL)
-        conn.protocol_version = 3
+        conn.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
         conn.set_option(ldap.OPT_REFERRALS, 0)
+        conn.set_option(ldap.OPT_X_TLS,ldap.OPT_X_TLS_DEMAND)
+        conn.set_option(ldap.OPT_X_TLS_DEMAND, True )
         try:
             conn.simple_bind_s(domain_user_name, password)
-        except ldap.LDAPError:
+        except ldap.LDAPINVALID_CREDENTIALS:
             raise AssertionError('Invalid user / password')
 
         tenants = self.get_tenants_for_user(user_id)
