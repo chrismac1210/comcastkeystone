@@ -58,8 +58,8 @@ Keystone user accounts will need to be created for every user that will need to 
 OpenStack web Dashboard or the command line tools. The user names for those accounts must match
 the user's LDAP user name.
 
-### RPM Install
-Note that this RPM will be installed alongside the OpenStack Keystone RPM. It is not a replacement.
+### Install
+Note that this module will be installed alongside the OpenStack Keystone module. It is not a replacement.
 
 ### Keystone configuration
 Configuration is accomplished by altering values in the Keystone configuration file. This file is
@@ -84,6 +84,21 @@ The following settings indicate the native Keystone SQL implementation should be
 
     [sql]
     connection = mysql://<Keystone DB Admin User Name>:<Keystone DB Admin User Password>@<DB Host>/keystone?charset=utf8
+
+#### LDAP Exceptions
+For users that should not be looked up via LDAP, they can be added to the file /etc/keystone/comcastkeystone.conf as
+JSON.  At a minimum, the OpenStack service accounts should be added:
+    {
+        "ldap_exceptions" : [
+            "glance",
+            "nova",
+            "swift",
+            "admin",
+            "fred",
+            "adam",
+            "susan"
+         ]
+    }
 
 
 ##Testing:
