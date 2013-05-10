@@ -23,6 +23,12 @@ from keystone.identity.backends import sql
 
 import ldap
 
+# additions for exception config file
+import json
+usersConf = open("/etc/keystone/comcastkeystone.conf")
+userVars = json.load(usersConf)
+usersConf.close()
+
 CONF = config.CONF
 LOG = logging.getLogger(__name__)
 
@@ -57,7 +63,7 @@ class LdapIdentity(sql.Identity):
 
         # If its an OpenStack service call validate against the native Keystone implementation because the service
         # users will NOT be in LDAP
-        if user_name in ['glance', 'nova', 'swift', 'admin']:
+        if user_name in userVars['ldap_exceptions']:
             return super(LdapIdentity, self).authenticate(user_id, tenant_id, password)
 
         # We need the user name. Get it (prepend domain name (yes, a Hack))
