@@ -65,7 +65,7 @@ class LdapIdentity(sql.Identity):
         # If they're not in keystone no need to check LDAP
         user_ref = self._get_user(user_id)
         if (not user_ref):
-            raise AssertionError('User not registered in Keystone')
+            return false
 
         # We were given the id of the user in the keystone database.
         user_name = user_ref.get('name')
@@ -73,7 +73,7 @@ class LdapIdentity(sql.Identity):
         # If its an OpenStack service call validate against the native Keystone implementation because the service
         # users will NOT be in LDAP
         if user_name in userVars['ldap_exceptions']:
-            return super(LdapIdentity, self).authenticate(user_id, tenant_id, password)
+            super(LdapIdentity, self)._check_password(password, user_ref)
 
         # We need the user name. Get it (prepend domain name (yes, a Hack))
         domain_user_name = self.LDAP_DOMAIN + '\\' + user_ref.get('name')
@@ -89,16 +89,6 @@ class LdapIdentity(sql.Identity):
         try:
             conn.simple_bind_s(domain_user_name, password)
         except ldap.LDAPINVALID_CREDENTIALS:
-            raise AssertionError('Invalid user / password')
-
-        tenants = self.get_tenants_for_user(user_id)
-        if tenant_id and tenant_id not in tenants:
-            raise AssertionError('Invalid tenant')
-
-        tenant_ref = self.get_tenant(tenant_id)
-        if tenant_ref:
-            metadata_ref = self.get_metadata(user_id, tenant_id)
-        else:
-            metadata_ref = {}
-        return (sql._filter_user(user_ref), tenant_ref, metadata_ref)
+            return false
+        return true
 
