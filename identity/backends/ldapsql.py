@@ -46,6 +46,15 @@ class LdapIdentity(sql.Identity):
         super(LdapIdentity, self).__init__()
         self.LDAP_URL = CONF.ldap.url
         self.LDAP_DOMAIN = CONF.ldap.user_tree_dn
+        self.usersConf = open("/etc/keystone/comcastkeystone.conf")
+        self.userVars = json.load(self.usersConf)
+        self.usersConf.close()
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+        self.conn = ldap.initialize(self.LDAP_URL)
+        self.conn.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
+        self.conn.set_option(ldap.OPT_REFERRALS, 0)
+        self.conn.set_option(ldap.OPT_X_TLS,ldap.OPT_X_TLS_DEMAND)
+        self.conn.set_option(ldap.OPT_X_TLS_DEMAND, True )
 
     def _check_password(self, password, user_ref):
         """Check the specified password against the data store.
@@ -59,21 +68,12 @@ class LdapIdentity(sql.Identity):
         https://blueprints.launchpad.net/keystone/+spec/sql-identiy-pam
 
         """
-        usersConf = open("/etc/keystone/comcastkeystone.conf")
-        userVars = json.load(usersConf)
-        usersConf.close()
-        
-        # If they're not in keystone no need to check LDAP
-        user_ref = self._get_user(user_id)
-        if (not user_ref):
-            return false
 
         # We were given the id of the user in the keystone database.
         user_name = user_ref.get('name')
 
-        # If its an OpenStack service call validate against the native Keystone implementation because the service
         # users will NOT be in LDAP
-        if user_name in userVars['ldap_exceptions']:
+        if user_name in self.userVars['ldap_exceptions']:
             super(LdapIdentity, self)._check_password(password, user_ref)
 
         # We need the user name. Get it (prepend domain name (yes, a Hack))
@@ -81,14 +81,8 @@ class LdapIdentity(sql.Identity):
         LOG.debug("Attempting to validate user with name: %s", domain_user_name)
         
         # Authenticate against LDAP
-        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-        conn = ldap.initialize(self.LDAP_URL)
-        conn.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
-        conn.set_option(ldap.OPT_REFERRALS, 0)
-        conn.set_option(ldap.OPT_X_TLS,ldap.OPT_X_TLS_DEMAND)
-        conn.set_option(ldap.OPT_X_TLS_DEMAND, True )
         try:
-            conn.simple_bind_s(domain_user_name, password)
+            self.conn.simple_bind_s(domain_user_name, password)
         except ldap.LDAPINVALID_CREDENTIALS:
             return false
         return true
