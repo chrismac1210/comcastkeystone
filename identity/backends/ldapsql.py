@@ -30,9 +30,6 @@ import ldap
 
 # additions for exception config file
 import json
-usersConf = open("/etc/keystone/comcastkeystone.conf")
-userVars = json.load(usersConf)
-usersConf.close()
 
 CONF = config.CONF
 LOG = logging.getLogger(__name__)
@@ -62,6 +59,10 @@ class LdapIdentity(sql.Identity):
         https://blueprints.launchpad.net/keystone/+spec/sql-identiy-pam
 
         """
+        usersConf = open("/etc/keystone/comcastkeystone.conf")
+        userVars = json.load(usersConf)
+        usersConf.close()
+        
         # If they're not in keystone no need to check LDAP
         user_ref = self._get_user(user_id)
         if (not user_ref):
