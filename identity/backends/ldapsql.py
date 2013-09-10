@@ -1,21 +1,26 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-#   Comcast requires OpenStack users be authenticated against the corporate LDAP servers. OpenStack's
-#   Keystone security module supports LDAP integration via keystone.identity.backends.ldap/core.py.
+# Copyright 2012 OpenStack Foundation
 #
-#   The problem with this implementation is that it assume that if you're using LDAP for authentication
-#   then you're using LDAP for authorization. This requires having Keystone's schema into Comcast's
-#   corporate LDAP. NOT gonna happen.
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
 #
-#   So what we want is to authenticate against the corporate LDAP but authorize against access rules
-#   defined in the Keystone database.
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-#   That's what this module does. It overrides the Identity class so that LDAP handles authentication
-#   and Keystone does the rest (roles, tenants, etc)
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 
-# Required by 'Original sql authentication logic'
-#from nevow.livepage import self
-from keystone.common import utils
+####believe we get these from sql that we are subclassing
+#from keystone.common import dependency
+#from keystone.common import sql
+#from keystone.common.sql import migration
+#from keystone.common import utils
+#from keystone import exception
+#from keystone import identity
 
 from keystone import config
 from keystone.common import logging
@@ -32,6 +37,7 @@ usersConf.close()
 CONF = config.CONF
 LOG = logging.getLogger(__name__)
 
+###Unsure if this is depricated with grizzly so left it in for now since its inherited until I figure it out
 class SqlIdentity(sql.Identity):
     def __init__(self):
         LOG.debug("Authentication will be performed via: %s", self)
@@ -44,32 +50,19 @@ class LdapIdentity(sql.Identity):
         self.LDAP_URL = CONF.ldap.url
         self.LDAP_DOMAIN = CONF.ldap.user_tree_dn
 
-    # Identity interface
-    def authenticate(self, user_id=None, tenant_id=None, password=None):
-        """Authenticate based on a user, tenant and password.
+    def _check_password(self, password, user_ref):
+        """Check the specified password against the data store.
 
-        Expects the user object to have a password field and the tenant to be
-        in the list of tenants on the user.
-
+        This is modeled on ldap/core.py.  The idea is to make it easier to
+        subclass Identity so that you can still use it to store all the data,
+        but use some other means to check the password.
+        Note that we'll pass in the entire user_ref in case the subclass
+        needs things like user_ref.get('name')
+        For further justification, please see the follow up suggestion at
+        https://blueprints.launchpad.net/keystone/+spec/sql-identiy-pam
 
         """
-        # If they're not in keystone no need to check LDAP
-        user_ref = self._get_user(user_id)
-        if (not user_ref):
-            raise AssertionError('User not registered in Keystone')
-
-        # We were given the id of the user in the keystone database.
-        user_name = user_ref.get('name')
-
-        # If its an OpenStack service call validate against the native Keystone implementation because the service
-        # users will NOT be in LDAP
-        if user_name in userVars['ldap_exceptions']:
-            return super(LdapIdentity, self).authenticate(user_id, tenant_id, password)
-
-        # We need the user name. Get it (prepend domain name (yes, a Hack))
-        domain_user_name = self.LDAP_DOMAIN + '\\' + user_ref.get('name')
-        LOG.debug("Attempting to validate user with name: %s", domain_user_name)
-
+        
         # Authenticate against LDAP
         ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
         conn = ldap.initialize(self.LDAP_URL)
