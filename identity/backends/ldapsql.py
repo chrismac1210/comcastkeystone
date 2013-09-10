@@ -62,6 +62,22 @@ class LdapIdentity(sql.Identity):
         https://blueprints.launchpad.net/keystone/+spec/sql-identiy-pam
 
         """
+        # If they're not in keystone no need to check LDAP
+        user_ref = self._get_user(user_id)
+        if (not user_ref):
+            raise AssertionError('User not registered in Keystone')
+
+        # We were given the id of the user in the keystone database.
+        user_name = user_ref.get('name')
+
+        # If its an OpenStack service call validate against the native Keystone implementation because the service
+        # users will NOT be in LDAP
+        if user_name in userVars['ldap_exceptions']:
+            return super(LdapIdentity, self).authenticate(user_id, tenant_id, password)
+
+        # We need the user name. Get it (prepend domain name (yes, a Hack))
+        domain_user_name = self.LDAP_DOMAIN + '\\' + user_ref.get('name')
+        LOG.debug("Attempting to validate user with name: %s", domain_user_name)
         
         # Authenticate against LDAP
         ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
